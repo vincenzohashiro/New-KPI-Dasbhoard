@@ -96,8 +96,9 @@ export interface AdCreative {
   bookings: number;
   revenue: number;
   ctr: number; // click-through rate %
+  cpc: number; // cost per click
   cpl: number; // cost per lead
-  cpb: number; // cost per booking
+  cpb: number; // cost per booking (CPA for Google)
   roas: number;
   conversionRate: number; // leads → bookings %
 }

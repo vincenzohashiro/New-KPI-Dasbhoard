@@ -13,7 +13,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from "lucide-react";
 
 type SortKey = keyof Pick<
   AdCreative,
-  "spend" | "leads" | "bookings" | "cpb" | "cpl" | "roas" | "ctr" | "conversionRate"
+  "spend" | "leads" | "bookings" | "cpb" | "cpl" | "cpc" | "roas" | "ctr" | "conversionRate"
 >;
 
 interface Props {
@@ -125,8 +125,9 @@ export function CreativesTable({ creatives, compact = false }: Props) {
               <Th col="leads" label="Leads" right />
               <Th col="bookings" label="Bookings" right />
               <Th col="cpl" label="CPL" right />
-              <Th col="cpb" label="Cost/Booking" right />
-              <Th col="conversionRate" label="Conv. %" right />
+              <Th col="cpc" label="CPC" right />
+              <Th col="cpb" label="CPA/Booking" right />
+              <Th col="conversionRate" label="CVR" right />
               <Th col="roas" label="ROAS" right />
               <Th col="ctr" label="CTR" right />
             </tr>
@@ -178,6 +179,9 @@ export function CreativesTable({ creatives, compact = false }: Props) {
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums text-xs text-text-secondary">
                   {formatCurrency(c.cpl, "NOK")}
+                </td>
+                <td className="py-2.5 px-3 text-right tabular-nums text-xs text-text-secondary">
+                  {formatCurrency(c.cpc, "NOK")}
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums">
                   <span

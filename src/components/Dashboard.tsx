@@ -7,6 +7,7 @@ import { SalesPipeline } from "./SalesPipeline";
 import { LeadSearch } from "./LeadSearch";
 import { AftercareSection } from "./AftercareSection";
 import { RevenueSection } from "./RevenueSection";
+import { PlatformStats } from "./PlatformStats";
 import { formatDate } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -21,16 +22,18 @@ import {
   AlertCircle,
   CheckCircle2,
   Settings,
+  BarChart2,
 } from "lucide-react";
 
 const TABS = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "funnel", label: "Funnel", icon: GitFork },
-  { id: "creatives", label: "Creatives", icon: Megaphone },
-  { id: "pipeline", label: "Sales Pipeline", icon: Kanban },
-  { id: "leads", label: "Lead Search", icon: Search },
-  { id: "aftercare", label: "Aftercare", icon: HeartPulse },
-  { id: "revenue", label: "Revenue", icon: TrendingUp },
+  { id: "overview",  label: "Overview",       icon: LayoutDashboard },
+  { id: "platforms", label: "Platforms",       icon: BarChart2 },
+  { id: "funnel",    label: "Funnel",          icon: GitFork },
+  { id: "creatives", label: "Creatives",       icon: Megaphone },
+  { id: "pipeline",  label: "Sales Pipeline",  icon: Kanban },
+  { id: "leads",     label: "Lead Search",     icon: Search },
+  { id: "aftercare", label: "Aftercare",       icon: HeartPulse },
+  { id: "revenue",   label: "Revenue",         icon: TrendingUp },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -195,22 +198,22 @@ export function Dashboard() {
 
         {data && (
           <>
-            {/* Overview always shows KPIs */}
             {activeTab === "overview" && (
               <div className="space-y-6">
                 <KPICards kpis={data.kpis} />
+                <PlatformStats creatives={data.creatives} />
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  <FunnelSection
-                    funnel={data.funnel}
-                    compact
-                  />
-                  <RevenueSection
-                    revenue={data.revenue}
-                    kpis={data.kpis}
-                    compact
-                  />
+                  <FunnelSection funnel={data.funnel} compact />
+                  <RevenueSection revenue={data.revenue} kpis={data.kpis} compact />
                 </div>
                 <CreativesTable creatives={data.creatives} compact />
+              </div>
+            )}
+
+            {activeTab === "platforms" && (
+              <div className="space-y-6">
+                <PlatformStats creatives={data.creatives} />
+                <CreativesTable creatives={data.creatives} />
               </div>
             )}
 
