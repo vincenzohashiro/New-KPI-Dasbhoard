@@ -1,247 +1,281 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getMockDashboardData } from "../src/lib/mock-data";
-import { fetchMondayLeads } from "./_monday";
 import type {
-  DashboardData,
-  Lead,
-  AdCreative,
-  FunnelStage,
-  KPIData,
-  RevenueBreakdown,
-  AnyStage,
-  BoardName,
+  Lead, StageEvent, BoardName, AnyStage, AdPlatform,
+  FunnelStage, KPIData, RevenueBreakdown, DashboardData,
 } from "../src/lib/types";
-import { EVALUATION_STAGES, SALES_STAGES, AFTERCARE_STAGES } from "../src/lib/types";
-import { format } from "date-fns";
 
-const SURGERY_PRICE_DEFAULT = parseFloat(
-  process.env.SURGERY_PRICE_DEFAULT || "40000"
-);
-const SOCO_BASE = parseFloat(process.env.SOCO_BASE_FEE || "5000");
-const SOCO_RATE = parseFloat(process.env.SOCO_COMMISSION_RATE || "0.10");
+// ─── Constants ────────────────────────────────────────────────────────────────
+const MONDAY_API      = "https://api.monday.com/v2";
+const SURGERY_DEFAULT = Number(process.env.SURGERY_PRICE_DEFAULT) || 40000;
+const SOCO_BASE       = Number(process.env.SOCO_BASE_FEE)         || 5000;
+const SOCO_RATE       = Number(process.env.SOCO_COMMISSION_RATE)  || 0.10;
 
-function buildFunnel(leads: Lead[]): FunnelStage[] {
-  const ALL_STAGES_ORDERED: Array<{ stage: AnyStage; board: BoardName }> = [
-    ...EVALUATION_STAGES.map((s) => ({ stage: s as AnyStage, board: "evaluation" as BoardName })),
-    ...SALES_STAGES.map((s) => ({ stage: s as AnyStage, board: "sales" as BoardName })),
-    ...AFTERCARE_STAGES.map((s) => ({ stage: s as AnyStage, board: "aftercare" as BoardName })),
+const BOARD_IDS = {
+  evaluation: "5052697723",
+  sales:      "5089650058",
+  aftercare:  "5052958230",
+};
+
+const COLS = {
+  evaluation: {
+    email: "email_mkwx219b", phone: "phone_mkwx7cez",
+    source: "color_mkwx19y8", grafts: "text_mkzb2zr0",
+    createdAt: "date_mkwx42yv", notes: "long_text_mkwx16gz",
+  },
+  sales: {
+    email: "email_mkza7v62", phone: "phone_mkza1j9h",
+    source: "color_mkztrzgr", grafts: "text_mkzb6nnd",
+    bookingDate: "datenxt9a1p3", surgeryDate: "date_mkznkt4c",
+    surgeryPrice: "numeric_mkzqekwa", utmCampaign: "short_text0dj0uud2",
+    utmSource: "short_text4n3j0t8v", createdAt: "date4",
+    notes: "long_text_mkzq3v68",
+  },
+  aftercare: {
+    email: "email_mkxmc5yw", phone: "phone_mkxm41px",
+    source: "color_mm0xcjap", grafts: "text_mm0xq923",
+    surgeryDate: "date_mkxmb3rn", surgeryPrice: "numeric_mkxm44ys",
+    createdAt: "date_mm0xnt5h", notes: "long_text_mkwx2fgj",
+  },
+} as const;
+
+const EVAL_STAGE: Record<string, AnyStage | null> = {
+  topics: "New Lead", group_title: "Waiting for Images",
+  group_mm0rfprs: "Waiting for Images", group_mkwxxzr5: "Waiting for Doctor Feedback",
+  group_mm29vwz4: "New Lead", group_mm0gyk0j: "New Lead",
+  group_mm0grjj8: "New Lead", group_mm0g3s0: "New Lead",
+  group_mm02bp7k: null, group_mm0g128: null, group_mkwxvtkf: null,
+};
+const SALES_STAGE: Record<string, AnyStage | null> = {
+  group_mkza669n: "Contacted/In Dialogue", group_mm00m1t3: "Consultation Done",
+  group_mkza3b7m: "Considering/Follow-up", group_mkzv5x4s: "Considering/Follow-up",
+  group_mkzap3ve: "Ready to Book", group_mm026ta4: "Ready to Book",
+  group_mm0jxsgb: "Not Contacted", group_mkzax00z: null, group_mm03bphx: null,
+};
+const AFTER_STAGE: Record<string, AnyStage | null> = {
+  group_mkxn63h2: "Booked", group_mkzh7bp3: "Pre-Travel",
+  group_mkxnqh72: "Surgery Completed", group_mkztkrpr: "Aftercare 3 months",
+  topics: "Aftercare 3 months", group_mkxmt5vn: "Aftercare 12 months",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function col(cvs: any[], id: string): string {
+  return cvs.find((c: any) => c.id === id)?.text?.trim() || "";
+}
+function colNum(cvs: any[], id: string): number {
+  return parseFloat((cvs.find((c: any) => c.id === id)?.text || "").replace(/[^0-9.]/g, "")) || 0;
+}
+function platform(kilde: string): AdPlatform {
+  const k = kilde.toLowerCase();
+  if (k.includes("meta") || k.includes("facebook") || k.includes("fb") || k.includes("instagram")) return "meta";
+  if (k.includes("google")) return "google";
+  return "other";
+}
+function stage(groupId: string, board: BoardName): AnyStage | null {
+  const map = board === "evaluation" ? EVAL_STAGE : board === "sales" ? SALES_STAGE : AFTER_STAGE;
+  return map[groupId] ?? null;
+}
+function monthLabel(iso: string): string {
+  return new Date(iso).toLocaleString("en", { month: "short" });
+}
+
+// ─── Monday GraphQL ───────────────────────────────────────────────────────────
+async function mondayFetch(boardId: string): Promise<any[]> {
+  const query = `query($id:ID!){boards(ids:[$id]){items_page(limit:500){items{id name created_at updated_at group{id}column_values{id text}}}}}`;
+  const res = await fetch(MONDAY_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": process.env.MONDAY_API_KEY!,
+      "API-Version": "2024-01",
+    },
+    body: JSON.stringify({ query, variables: { id: boardId } }),
+  });
+  if (!res.ok) throw new Error(`Monday HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.errors?.length) throw new Error(json.errors[0].message);
+  return json.data.boards[0]?.items_page?.items ?? [];
+}
+
+// ─── Build leads from Monday boards ──────────────────────────────────────────
+async function fetchLeads(): Promise<Lead[]> {
+  const boards: Array<{ id: string; name: BoardName }> = [
+    { id: BOARD_IDS.evaluation, name: "evaluation" },
+    { id: BOARD_IDS.sales,      name: "sales" },
+    { id: BOARD_IDS.aftercare,  name: "aftercare" },
   ];
 
-  const stageCounts = new Map<string, number>();
-  const stageAvgDays = new Map<string, number[]>();
+  const map = new Map<string, Lead>();
 
-  for (const lead of leads) {
-    for (const event of lead.stageHistory) {
-      const key = event.stage;
-      stageCounts.set(key, (stageCounts.get(key) || 0) + 1);
-      if (event.daysSpent !== undefined) {
-        if (!stageAvgDays.has(key)) stageAvgDays.set(key, []);
-        stageAvgDays.get(key)!.push(event.daysSpent);
+  for (const board of boards) {
+    const items = await mondayFetch(board.id);
+    for (const item of items) {
+      const s = stage(item.group?.id, board.name);
+      if (s === null) continue;
+
+      const cvs  = item.column_values as any[];
+      const c    = COLS[board.name] as any;
+      const src  = platform(col(cvs, c.source));
+      let email  = col(cvs, c.email);
+      let phone  = col(cvs, c.phone);
+      let grafts = colNum(cvs, c.grafts) || undefined;
+      let notes  = col(cvs, c.notes) || undefined;
+      let bookingDate: string | undefined;
+      let surgeryDate: string | undefined;
+      let surgeryPrice: number | undefined;
+      let campaign: string | undefined;
+      let createdAt = col(cvs, c.createdAt) || item.created_at;
+
+      if (board.name === "sales") {
+        bookingDate  = col(cvs, c.bookingDate) || undefined;
+        surgeryDate  = col(cvs, c.surgeryDate) || undefined;
+        const p = colNum(cvs, c.surgeryPrice); if (p > 0) surgeryPrice = p;
+        campaign = col(cvs, c.utmCampaign) || col(cvs, c.utmSource) || undefined;
+      } else if (board.name === "aftercare") {
+        surgeryDate = col(cvs, c.surgeryDate) || undefined;
+        const p = colNum(cvs, c.surgeryPrice); if (p > 0) surgeryPrice = p;
       }
-    }
-    const curr = lead.currentStage;
-    stageCounts.set(curr, (stageCounts.get(curr) || 0) + 1);
-    if (lead.daysInCurrentStage !== undefined) {
-      if (!stageAvgDays.has(curr)) stageAvgDays.set(curr, []);
-      stageAvgDays.get(curr)!.push(lead.daysInCurrentStage);
+
+      const event: StageEvent = { board: board.name, stage: s, enteredAt: createdAt };
+      const existing = map.get(item.name);
+
+      if (existing) {
+        existing.currentBoard = board.name;
+        existing.currentStage = s;
+        existing.updatedAt    = item.updated_at;
+        existing.stageHistory.push(event);
+        if (bookingDate)  existing.bookingDate  = bookingDate;
+        if (surgeryDate)  existing.surgeryDate  = surgeryDate;
+        if (surgeryPrice) existing.surgeryPrice = surgeryPrice;
+        if (email && !existing.email) existing.email = email;
+        if (phone && !existing.phone) existing.phone = phone;
+        if (grafts) existing.grafts = grafts;
+      } else {
+        const days = Math.round((Date.now() - new Date(createdAt).getTime()) / 86400000);
+        map.set(item.name, {
+          id: item.id, name: item.name,
+          email: email || undefined, phone: phone || undefined,
+          source: src, campaignName: campaign,
+          currentBoard: board.name, currentStage: s,
+          stageHistory: [event],
+          surgeryPrice, bookingDate, surgeryDate,
+          createdAt, updatedAt: item.updated_at,
+          notes, grafts,
+          daysInCurrentStage: days, isStuck: days > 7,
+        });
+      }
     }
   }
 
-  const firstCount = stageCounts.get(EVALUATION_STAGES[0]) || leads.length;
+  return Array.from(map.values());
+}
 
-  return ALL_STAGES_ORDERED.map((item, idx) => {
-    const count = stageCounts.get(item.stage) || 0;
-    const days = stageAvgDays.get(item.stage) || [];
-    const avgDays =
-      days.length > 0
-        ? Math.round(days.reduce((a, b) => a + b, 0) / days.length)
-        : 0;
-    const prevCount =
-      idx === 0
-        ? firstCount
-        : stageCounts.get(ALL_STAGES_ORDERED[idx - 1].stage) || count;
-    const cumulativeDropoff =
-      firstCount > 0
-        ? Math.round(((firstCount - count) / firstCount) * 1000) / 10
-        : 0;
-    const stageDropoff =
-      prevCount > 0
-        ? Math.round(((prevCount - count) / prevCount) * 1000) / 10
-        : 0;
+// ─── KPI / Funnel / Revenue builders ─────────────────────────────────────────
+const ALL_STAGES: Array<{ stage: AnyStage; board: BoardName }> = [
+  { stage: "New Lead",                    board: "evaluation" },
+  { stage: "Waiting for Images",          board: "evaluation" },
+  { stage: "Images Received",             board: "evaluation" },
+  { stage: "Waiting for Doctor Feedback", board: "evaluation" },
+  { stage: "Doctor Feedback Ready",       board: "evaluation" },
+  { stage: "Not Contacted",               board: "sales" },
+  { stage: "Contacted/In Dialogue",       board: "sales" },
+  { stage: "Consultation Done",           board: "sales" },
+  { stage: "Considering/Follow-up",       board: "sales" },
+  { stage: "Ready to Book",               board: "sales" },
+  { stage: "Booked",                      board: "aftercare" },
+  { stage: "Pre-Travel",                  board: "aftercare" },
+  { stage: "Surgery Completed",           board: "aftercare" },
+  { stage: "Aftercare 3 months",          board: "aftercare" },
+  { stage: "Aftercare 12 months",         board: "aftercare" },
+];
 
+function buildFunnel(leads: Lead[]): FunnelStage[] {
+  const counts = new Map<string, number>();
+  for (const l of leads) {
+    for (const e of l.stageHistory) counts.set(e.stage, (counts.get(e.stage) || 0) + 1);
+    counts.set(l.currentStage, (counts.get(l.currentStage) || 0) + 1);
+  }
+  const first = counts.get("New Lead") || leads.length || 1;
+  return ALL_STAGES.map((item, i) => {
+    const count = counts.get(item.stage) || 0;
+    const prev  = i === 0 ? first : counts.get(ALL_STAGES[i - 1].stage) || count;
     return {
-      board: item.board,
-      stage: item.stage,
-      order: idx + 1,
-      count,
-      cumulativeDropoff,
-      stageDropoff,
-      avgDaysInStage: avgDays,
+      board: item.board, stage: item.stage, order: i + 1, count,
+      cumulativeDropoff: Math.round(((first - count) / first) * 1000) / 10,
+      stageDropoff:      prev > 0 ? Math.round(((prev - count) / prev) * 1000) / 10 : 0,
+      avgDaysInStage: 0,
     } satisfies FunnelStage;
   });
 }
 
-function buildKPIs(leads: Lead[], creatives: AdCreative[], adSpendOverride?: number): KPIData {
-  const booked = leads.filter(
-    (l) =>
-      l.currentBoard === "aftercare" ||
-      (l.stageHistory || []).some((s) => s.board === "aftercare")
-  );
-  const totalLeads = leads.length;
-  const totalBookings = booked.length;
-
-  const totalRevenue = booked.reduce(
-    (sum, l) => sum + (l.surgeryPrice || SURGERY_PRICE_DEFAULT),
-    0
-  );
-
-  const totalAdSpend = adSpendOverride || creatives.reduce((sum, c) => sum + c.spend, 0);
-
-  const bookedWithDays = booked.filter((l) => {
-    const created = new Date(l.createdAt).getTime();
-    const booked = l.bookingDate ? new Date(l.bookingDate).getTime() : undefined;
-    return booked && booked > created;
-  });
-  const avgDaysLeadToBooked =
-    bookedWithDays.length > 0
-      ? Math.round(
-          bookedWithDays.reduce((sum, l) => {
-            return (
-              sum +
-              (new Date(l.bookingDate!).getTime() - new Date(l.createdAt).getTime()) /
-                86400000
-            );
-          }, 0) / bookedWithDays.length
-        )
-      : 0;
-
-  const onSalesBoard = leads.filter((l) => ["sales", "aftercare"].includes(l.currentBoard));
-  const leadToSalesRate =
-    totalLeads > 0 ? Math.round((onSalesBoard.length / totalLeads) * 1000) / 10 : 0;
-  const salesToBookingRate =
-    onSalesBoard.length > 0
-      ? Math.round((totalBookings / onSalesBoard.length) * 1000) / 10
-      : 0;
-  const overallConversionRate =
-    totalLeads > 0 ? Math.round((totalBookings / totalLeads) * 1000) / 10 : 0;
-
-  const totalLeadsFromAds = creatives.reduce((s, c) => s + c.leads, 0);
-  const costPerLead = totalLeadsFromAds > 0 ? totalAdSpend / totalLeadsFromAds : 0;
-  const costPerBooking = totalBookings > 0 ? totalAdSpend / totalBookings : 0;
-  const roas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
-  const socoFee = SOCO_BASE + SOCO_RATE * totalRevenue;
-  const stuckLeads = leads.filter((l) => l.isStuck).length;
-
+function buildKPIs(leads: Lead[]): KPIData {
+  const booked   = leads.filter(l => l.currentBoard === "aftercare" || l.stageHistory.some(s => s.board === "aftercare"));
+  const onSales  = leads.filter(l => ["sales", "aftercare"].includes(l.currentBoard));
+  const revenue  = booked.reduce((s, l) => s + (l.surgeryPrice || SURGERY_DEFAULT), 0);
+  const socoFee  = SOCO_BASE + SOCO_RATE * revenue;
   return {
-    totalLeads,
-    totalBookings,
-    overallConversionRate,
-    leadToSalesRate,
-    salesToBookingRate,
-    avgDaysLeadToBooked,
-    totalRevenue,
-    totalAdSpend,
-    roas: Math.round(roas * 100) / 100,
-    socoFee: Math.round(socoFee),
-    costPerLead: Math.round(costPerLead),
-    costPerBooking: Math.round(costPerBooking),
-    activeLeads: leads.filter(
-      (l) => l.currentBoard !== "aftercare" || l.currentStage === "Booked"
-    ).length,
-    stuckLeads,
+    totalLeads: leads.length,
+    totalBookings: booked.length,
+    overallConversionRate: leads.length ? Math.round((booked.length / leads.length) * 1000) / 10 : 0,
+    leadToSalesRate:       leads.length ? Math.round((onSales.length / leads.length) * 1000) / 10 : 0,
+    salesToBookingRate:    onSales.length ? Math.round((booked.length / onSales.length) * 1000) / 10 : 0,
+    avgDaysLeadToBooked: 0,
+    totalRevenue: revenue, totalAdSpend: 0,
+    roas: 0, socoFee: Math.round(socoFee),
+    costPerLead: 0, costPerBooking: 0,
+    activeLeads: leads.filter(l => l.currentBoard !== "aftercare" || l.currentStage === "Booked").length,
+    stuckLeads:  leads.filter(l => l.isStuck).length,
   };
 }
 
 function buildRevenue(leads: Lead[]): RevenueBreakdown[] {
-  const monthMap = new Map<string, RevenueBreakdown>();
-
-  for (const lead of leads) {
-    if (!lead.bookingDate) continue;
-    const month = lead.bookingDate.slice(0, 7);
-    const label = format(new Date(lead.bookingDate), "MMM");
-    if (!monthMap.has(month)) {
-      monthMap.set(month, { month, label, bookings: 0, revenue: 0, adSpend: 0, roas: 0, socoFee: 0, profit: 0 });
-    }
-    const entry = monthMap.get(month)!;
-    entry.bookings += 1;
-    entry.revenue += lead.surgeryPrice || SURGERY_PRICE_DEFAULT;
+  const m = new Map<string, RevenueBreakdown>();
+  for (const l of leads) {
+    if (!l.bookingDate) continue;
+    const key   = l.bookingDate.slice(0, 7);
+    const label = monthLabel(l.bookingDate);
+    if (!m.has(key)) m.set(key, { month: key, label, bookings: 0, revenue: 0, adSpend: 0, roas: 0, socoFee: 0, profit: 0 });
+    const e = m.get(key)!;
+    e.bookings++;
+    e.revenue += l.surgeryPrice || SURGERY_DEFAULT;
   }
-
-  for (const entry of monthMap.values()) {
-    entry.socoFee = Math.round(SOCO_BASE + SOCO_RATE * entry.revenue);
-    entry.profit = entry.revenue - entry.socoFee - entry.adSpend;
-    entry.roas = entry.adSpend > 0 ? Math.round((entry.revenue / entry.adSpend) * 100) / 100 : 0;
+  for (const e of m.values()) {
+    e.socoFee = Math.round(SOCO_BASE + SOCO_RATE * e.revenue);
+    e.profit  = e.revenue - e.socoFee;
   }
-
-  return Array.from(monthMap.values()).sort((a, b) => a.month.localeCompare(b.month));
+  return Array.from(m.values()).sort((a, b) => a.month.localeCompare(b.month));
 }
 
+// ─── Handler ──────────────────────────────────────────────────────────────────
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.query.mock === "true") {
-    return res.json(getMockDashboardData());
+  const apiKey = process.env.MONDAY_API_KEY;
+
+  if (!apiKey) {
+    return res.json({
+      kpis: buildKPIs([]), funnel: buildFunnel([]),
+      creatives: [], leads: [], revenue: [],
+      dataSource: "live", lastUpdated: new Date().toISOString(),
+      apiStatus: { monday: "unconfigured", meta: "unconfigured", google: "unconfigured" },
+    } satisfies DashboardData);
   }
+
+  let mondayStatus: "ok" | "error" = "ok";
+  let leads: Lead[] = [];
 
   try {
-    // Call Monday directly (no HTTP round-trip — avoids self-fetch failures on Vercel)
-    const [mondayResult] = await Promise.all([
-      fetchMondayLeads(),
-      // Meta and Google will be added here once credentials are configured
-    ]);
-
-    const mondayOk = !mondayResult.error && mondayResult.leads.length >= 0;
-    const metaOk = false;
-    const googleOk = false;
-
-    const leads: Lead[] = mondayResult.leads;
-    const metaCreatives: AdCreative[] = [];
-    const googleCreatives: AdCreative[] = [];
-
-    const allCreatives = [...metaCreatives, ...googleCreatives].map((c) => {
-      const adLeads = leads.filter((l) => l.adId === c.adId);
-      const adBookings = adLeads.filter(
-        (l) =>
-          l.currentBoard === "aftercare" ||
-          l.stageHistory.some((s) => s.board === "aftercare")
-      );
-      const revenue = adBookings.reduce(
-        (sum, l) => sum + (l.surgeryPrice || SURGERY_PRICE_DEFAULT),
-        0
-      );
-      return {
-        ...c,
-        bookings: adBookings.length,
-        revenue,
-        conversionRate:
-          adLeads.length > 0
-            ? Math.round((adBookings.length / adLeads.length) * 1000) / 10
-            : 0,
-        cpb: adBookings.length > 0 ? Math.round(c.spend / adBookings.length) : 0,
-        roas: c.spend > 0 ? Math.round((revenue / c.spend) * 100) / 100 : 0,
-      };
-    });
-
-    const funnel = buildFunnel(leads);
-    const kpis = buildKPIs(leads, allCreatives);
-    const revenue = buildRevenue(leads);
-
-    const data: DashboardData = {
-      kpis,
-      funnel,
-      creatives: allCreatives,
-      leads,
-      revenue,
-      dataSource: "live",
-      lastUpdated: new Date().toISOString(),
-      apiStatus: {
-        monday: mondayOk ? "ok" : mondayResult.error ? "error" : "unconfigured",
-        meta:   "unconfigured",
-        google: "unconfigured",
-      },
-    };
-
-    return res.json(data);
+    leads = await fetchLeads();
   } catch (err: any) {
-    console.error("Dashboard handler error:", err);
-    return res.status(500).json({ error: err.message });
+    console.error("Monday error:", err.message);
+    mondayStatus = "error";
   }
+
+  return res.json({
+    kpis:     buildKPIs(leads),
+    funnel:   buildFunnel(leads),
+    creatives: [],
+    leads,
+    revenue:  buildRevenue(leads),
+    dataSource: "live",
+    lastUpdated: new Date().toISOString(),
+    apiStatus: { monday: mondayStatus, meta: "unconfigured", google: "unconfigured" },
+  } satisfies DashboardData);
 }
