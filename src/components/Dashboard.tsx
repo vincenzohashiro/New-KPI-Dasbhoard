@@ -257,6 +257,16 @@ export function Dashboard() {
           </div>
         )}
 
+        {/* Demo banner */}
+        {source === "demo" && (
+          <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-lg bg-warning/10 border border-warning/30 text-warning text-sm">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>
+              <strong>Example data only</strong> — numbers below are fictional and for layout preview purposes. Switch to the Monday tab to see real data.
+            </span>
+          </div>
+        )}
+
         {/* Monday + Demo content */}
         {data && (source === "monday" || source === "demo") && (
           <>
