@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMockDashboardData } from "../src/lib/mock-data";
-import { fetchMondayLeads } from "./monday";
+import { fetchMondayLeads } from "./_monday";
 import type {
   DashboardData,
   Lead,
