@@ -91,7 +91,7 @@ function PlatformCard({ title, subtitle, accentColor, summary, isGoogle = false 
         <div className="ml-auto text-right">
           <div className="text-xs text-text-muted">Total Spend</div>
           <div className="text-sm font-bold text-text-primary">
-            {formatCurrency(summary.spend, "NOK", true)}
+            {formatCurrency(summary.spend, "DKK", true)}
           </div>
         </div>
       </div>
@@ -102,7 +102,7 @@ function PlatformCard({ title, subtitle, accentColor, summary, isGoogle = false 
         <>
           <StatRow
             label="CPA (Cost per Acquisition)"
-            value={summary.cpa > 0 ? formatCurrency(summary.cpa, "NOK") : "—"}
+            value={summary.cpa > 0 ? formatCurrency(summary.cpa, "DKK") : "—"}
             sub={`${summary.bookings} bookings`}
             highlight={summary.cpa > 0 && summary.cpa < 8000 ? "good" : summary.cpa > 12000 ? "warn" : "neutral"}
           />
@@ -125,7 +125,7 @@ function PlatformCard({ title, subtitle, accentColor, summary, isGoogle = false 
           />
           <StatRow
             label="CPC (Cost per Click)"
-            value={formatCurrency(summary.cpc, "NOK")}
+            value={formatCurrency(summary.cpc, "DKK")}
             highlight={summary.cpc < 15 ? "good" : summary.cpc < 25 ? "neutral" : "warn"}
           />
         </>
@@ -134,7 +134,7 @@ function PlatformCard({ title, subtitle, accentColor, summary, isGoogle = false 
         <>
           <StatRow
             label="CPL (Cost per Lead)"
-            value={summary.cpl > 0 ? formatCurrency(summary.cpl, "NOK") : "—"}
+            value={summary.cpl > 0 ? formatCurrency(summary.cpl, "DKK") : "—"}
             sub={`${summary.leads} leads total`}
             highlight={summary.cpl > 0 && summary.cpl < 700 ? "good" : summary.cpl > 1000 ? "warn" : "neutral"}
           />
@@ -157,7 +157,7 @@ function PlatformCard({ title, subtitle, accentColor, summary, isGoogle = false 
           />
           <StatRow
             label="CPC (Cost per Link Click)"
-            value={formatCurrency(summary.cpc, "NOK")}
+            value={formatCurrency(summary.cpc, "DKK")}
             highlight={summary.cpc < 15 ? "good" : summary.cpc < 25 ? "neutral" : "warn"}
           />
         </>

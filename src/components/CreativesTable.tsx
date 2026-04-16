@@ -158,7 +158,7 @@ export function CreativesTable({ creatives, compact = false }: Props) {
                   </div>
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums text-text-secondary text-xs">
-                  {formatCurrency(c.spend, "NOK")}
+                  {formatCurrency(c.spend, "DKK")}
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums font-medium">
                   {c.leads}
@@ -178,10 +178,10 @@ export function CreativesTable({ creatives, compact = false }: Props) {
                   </span>
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums text-xs text-text-secondary">
-                  {formatCurrency(c.cpl, "NOK")}
+                  {formatCurrency(c.cpl, "DKK")}
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums text-xs text-text-secondary">
-                  {formatCurrency(c.cpc, "NOK")}
+                  {formatCurrency(c.cpc, "DKK")}
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums">
                   <span
@@ -198,7 +198,7 @@ export function CreativesTable({ creatives, compact = false }: Props) {
                   >
                     {c.cpb === 0
                       ? "—"
-                      : formatCurrency(c.cpb, "NOK")}
+                      : formatCurrency(c.cpb, "DKK")}
                   </span>
                 </td>
                 <td className="py-2.5 px-3 text-right tabular-nums text-xs">
@@ -247,7 +247,7 @@ export function CreativesTable({ creatives, compact = false }: Props) {
                 <td className="py-2 px-3 text-right text-xs font-semibold tabular-nums">
                   {formatCurrency(
                     displayData.reduce((s, c) => s + c.spend, 0),
-                    "NOK"
+                    "DKK"
                   )}
                 </td>
                 <td className="py-2 px-3 text-right text-xs font-semibold tabular-nums">

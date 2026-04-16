@@ -38,7 +38,7 @@ function CustomTooltip({ active, payload, label }: any) {
             {p.name === "ROAS"
               ? `${p.value?.toFixed(2)}×`
               : typeof p.value === "number" && p.value > 1000
-              ? formatCurrency(p.value, "NOK")
+              ? formatCurrency(p.value, "DKK")
               : p.value}
           </span>
         </div>
@@ -167,7 +167,7 @@ export function RevenueSection({ revenue, kpis, compact = false }: Props) {
                 <div className="p-3 rounded-lg bg-bg-elevated border border-bg-border">
                   <div className="text-xs text-text-muted mb-1">Total Revenue</div>
                   <div className="font-bold text-text-primary">
-                    {formatCurrency(kpis.totalRevenue, "NOK")}
+                    {formatCurrency(kpis.totalRevenue, "DKK")}
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-bg-elevated border border-bg-border">
@@ -175,7 +175,7 @@ export function RevenueSection({ revenue, kpis, compact = false }: Props) {
                     Base Fee (fixed)
                   </div>
                   <div className="font-bold text-text-primary">
-                    {formatCurrency(socoBase, "NOK")}
+                    {formatCurrency(socoBase, "DKK")}
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-bg-elevated border border-bg-border">
@@ -183,13 +183,13 @@ export function RevenueSection({ revenue, kpis, compact = false }: Props) {
                     Commission (10%)
                   </div>
                   <div className="font-bold text-gold">
-                    {formatCurrency(socoCommission, "NOK")}
+                    {formatCurrency(socoCommission, "DKK")}
                   </div>
                 </div>
                 <div className="p-3 rounded-lg bg-gold/10 border border-gold/20">
                   <div className="text-xs text-text-muted mb-1">Total Soco Fee</div>
                   <div className="font-bold text-gold text-lg">
-                    {formatCurrency(totalSocoFee, "NOK")}
+                    {formatCurrency(totalSocoFee, "DKK")}
                   </div>
                 </div>
               </div>
@@ -197,9 +197,9 @@ export function RevenueSection({ revenue, kpis, compact = false }: Props) {
               <div className="mt-4 p-3 rounded-lg bg-bg-elevated border border-bg-border">
                 <div className="text-xs text-text-muted mb-1">Formula</div>
                 <div className="font-mono text-xs text-text-secondary">
-                  Soco Fee = 5,000 + (10% × {formatCurrency(kpis.totalRevenue, "NOK")}) ={" "}
+                  Soco Fee = 5,000 + (10% × {formatCurrency(kpis.totalRevenue, "DKK")}) ={" "}
                   <span className="text-gold font-semibold">
-                    {formatCurrency(totalSocoFee, "NOK")}
+                    {formatCurrency(totalSocoFee, "DKK")}
                   </span>
                 </div>
               </div>
@@ -247,11 +247,11 @@ export function RevenueSection({ revenue, kpis, compact = false }: Props) {
                           {row.bookings}
                         </td>
                         <td className="py-2.5 px-4 tabular-nums font-medium text-brand">
-                          {formatCurrency(row.revenue, "NOK")}
+                          {formatCurrency(row.revenue, "DKK")}
                         </td>
                         <td className="py-2.5 px-4 tabular-nums text-text-secondary text-xs">
                           {row.adSpend > 0
-                            ? formatCurrency(row.adSpend, "NOK")
+                            ? formatCurrency(row.adSpend, "DKK")
                             : "—"}
                         </td>
                         <td className="py-2.5 px-4 tabular-nums">
@@ -269,10 +269,10 @@ export function RevenueSection({ revenue, kpis, compact = false }: Props) {
                           </span>
                         </td>
                         <td className="py-2.5 px-4 tabular-nums text-gold text-xs">
-                          {formatCurrency(row.socoFee, "NOK")}
+                          {formatCurrency(row.socoFee, "DKK")}
                         </td>
                         <td className="py-2.5 px-4 tabular-nums font-semibold text-success">
-                          {formatCurrency(row.profit, "NOK")}
+                          {formatCurrency(row.profit, "DKK")}
                         </td>
                       </tr>
                     ))}

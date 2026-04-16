@@ -74,7 +74,7 @@ function LeadRow({ lead }: { lead: Lead }) {
         <td className="py-2.5 px-3 text-xs">
           {lead.surgeryPrice ? (
             <span className="text-gold font-medium">
-              {formatCurrency(lead.surgeryPrice, "NOK")}
+              {formatCurrency(lead.surgeryPrice, "DKK")}
             </span>
           ) : (
             <span className="text-text-muted">—</span>

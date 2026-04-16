@@ -113,22 +113,22 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
         />
         <KPICard
           label="Revenue"
-          value={formatCurrency(kpis.totalRevenue, "NOK", true)}
+          value={formatCurrency(kpis.totalRevenue, "DKK", true)}
           sub={`${kpis.totalBookings} surgeries`}
           icon={<BadgeDollarSign size={16} />}
           accent="gold"
         />
         <KPICard
           label="Ad Spend"
-          value={formatCurrency(kpis.totalAdSpend, "NOK", true)}
-          sub={`CPL ${formatCurrency(kpis.costPerLead, "NOK")}`}
+          value={formatCurrency(kpis.totalAdSpend, "DKK", true)}
+          sub={`CPL ${formatCurrency(kpis.costPerLead, "DKK")}`}
           icon={<Wallet size={16} />}
           accent="brand"
         />
         <KPICard
           label="ROAS"
           value={`${kpis.roas.toFixed(2)}×`}
-          sub={`CPB ${formatCurrency(kpis.costPerBooking, "NOK", true)}`}
+          sub={`CPB ${formatCurrency(kpis.costPerBooking, "DKK", true)}`}
           delta={kpis.deltaRoas}
           deltaLabel="×"
           icon={<TrendingUp size={16} />}
@@ -181,13 +181,13 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
           <div>
             <div className="text-xs text-text-muted mb-1">Soco Fee (5k + 10%)</div>
             <div className="text-lg font-bold text-gold">
-              {formatCurrency(kpis.socoFee, "NOK", true)}
+              {formatCurrency(kpis.socoFee, "DKK", true)}
             </div>
           </div>
           <div className="text-right">
             <div className="text-xs text-text-muted mb-1">Net revenue</div>
             <div className="text-lg font-bold text-success">
-              {formatCurrency(kpis.totalRevenue - kpis.socoFee - kpis.totalAdSpend, "NOK", true)}
+              {formatCurrency(kpis.totalRevenue - kpis.socoFee - kpis.totalAdSpend, "DKK", true)}
             </div>
           </div>
         </div>
@@ -196,13 +196,13 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
           <div>
             <div className="text-xs text-text-muted mb-1">Cost per Lead</div>
             <div className="text-lg font-bold">
-              {formatCurrency(kpis.costPerLead, "NOK")}
+              {formatCurrency(kpis.costPerLead, "DKK")}
             </div>
           </div>
           <div className="text-right">
             <div className="text-xs text-text-muted mb-1">Cost per Booking</div>
             <div className="text-lg font-bold text-brand">
-              {formatCurrency(kpis.costPerBooking, "NOK")}
+              {formatCurrency(kpis.costPerBooking, "DKK")}
             </div>
           </div>
         </div>

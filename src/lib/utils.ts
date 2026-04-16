@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(
   value: number,
-  currency = "NOK",
+  currency = "DKK",
   compact = false
 ) {
   if (compact && value >= 1_000_000)

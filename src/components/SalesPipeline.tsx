@@ -207,7 +207,7 @@ function LeadJourneyModal({
                 <div>
                   <div className="text-xs text-text-muted mb-1">Surgery Price</div>
                   <div className="font-bold text-gold">
-                    NOK {lead.surgeryPrice.toLocaleString()}
+                    DKK {lead.surgeryPrice.toLocaleString()}
                   </div>
                 </div>
               )}

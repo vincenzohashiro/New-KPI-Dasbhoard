@@ -20,7 +20,7 @@ function AftercareCard({ lead }: { lead: Lead }) {
         </div>
         {lead.surgeryPrice && (
           <div className="text-xs font-semibold text-gold">
-            NOK {lead.surgeryPrice.toLocaleString()}
+            DKK {lead.surgeryPrice.toLocaleString()}
           </div>
         )}
       </div>
@@ -103,7 +103,7 @@ export function AftercareSection({ leads }: { leads: Lead[] }) {
           <p className="text-xs text-text-muted mt-0.5">
             {aftercareLeads.length} patients · Total revenue{" "}
             <span className="text-gold font-medium">
-              {formatCurrency(totalRevenue, "NOK")}
+              {formatCurrency(totalRevenue, "DKK")}
             </span>
           </p>
         </div>
