@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMockDashboardData } from "../src/lib/mock-data";
+import { fetchMondayLeads } from "./monday";
 import type {
   DashboardData,
   Lead,
@@ -180,78 +181,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.json(getMockDashboardData());
   }
 
-  const since = (req.query.since as string) || "2024-01-01";
-  const until = (req.query.until as string) || new Date().toISOString().slice(0, 10);
+  try {
+    // Call Monday directly (no HTTP round-trip — avoids self-fetch failures on Vercel)
+    const [mondayResult] = await Promise.all([
+      fetchMondayLeads(),
+      // Meta and Google will be added here once credentials are configured
+    ]);
 
-  const BASE = process.env.BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    const mondayOk = !mondayResult.error && mondayResult.leads.length >= 0;
+    const metaOk = false;
+    const googleOk = false;
 
-  const qs = `?since=${since}&until=${until}`;
+    const leads: Lead[] = mondayResult.leads;
+    const metaCreatives: AdCreative[] = [];
+    const googleCreatives: AdCreative[] = [];
 
-  const [mondayRes, metaRes, googleRes] = await Promise.allSettled([
-    fetch(`${BASE}/api/monday${qs}`).then((r) => r.json()),
-    fetch(`${BASE}/api/meta${qs}`).then((r) => r.json()),
-    fetch(`${BASE}/api/google-ads${qs}`).then((r) => r.json()),
-  ]);
+    const allCreatives = [...metaCreatives, ...googleCreatives].map((c) => {
+      const adLeads = leads.filter((l) => l.adId === c.adId);
+      const adBookings = adLeads.filter(
+        (l) =>
+          l.currentBoard === "aftercare" ||
+          l.stageHistory.some((s) => s.board === "aftercare")
+      );
+      const revenue = adBookings.reduce(
+        (sum, l) => sum + (l.surgeryPrice || SURGERY_PRICE_DEFAULT),
+        0
+      );
+      return {
+        ...c,
+        bookings: adBookings.length,
+        revenue,
+        conversionRate:
+          adLeads.length > 0
+            ? Math.round((adBookings.length / adLeads.length) * 1000) / 10
+            : 0,
+        cpb: adBookings.length > 0 ? Math.round(c.spend / adBookings.length) : 0,
+        roas: c.spend > 0 ? Math.round((revenue / c.spend) * 100) / 100 : 0,
+      };
+    });
 
-  const mondayOk = mondayRes.status === "fulfilled" && !mondayRes.value.error;
-  const metaOk = metaRes.status === "fulfilled" && !metaRes.value.error;
-  const googleOk = googleRes.status === "fulfilled" && !googleRes.value.error;
+    const funnel = buildFunnel(leads);
+    const kpis = buildKPIs(leads, allCreatives);
+    const revenue = buildRevenue(leads);
 
-  if (!mondayOk && !metaOk && !googleOk) {
-    return res.json(getMockDashboardData());
-  }
-
-  const leads: Lead[] = mondayOk ? (mondayRes as PromiseFulfilledResult<any>).value.leads : [];
-  const metaCreatives: AdCreative[] = metaOk
-    ? (metaRes as PromiseFulfilledResult<any>).value.creatives
-    : [];
-  const googleCreatives: AdCreative[] = googleOk
-    ? (googleRes as PromiseFulfilledResult<any>).value.creatives
-    : [];
-
-  const allCreatives = [...metaCreatives, ...googleCreatives].map((c) => {
-    const adLeads = leads.filter((l) => l.adId === c.adId);
-    const adBookings = adLeads.filter(
-      (l) =>
-        l.currentBoard === "aftercare" ||
-        l.stageHistory.some((s) => s.board === "aftercare")
-    );
-    const revenue = adBookings.reduce(
-      (sum, l) => sum + (l.surgeryPrice || SURGERY_PRICE_DEFAULT),
-      0
-    );
-    return {
-      ...c,
-      bookings: adBookings.length,
+    const data: DashboardData = {
+      kpis,
+      funnel,
+      creatives: allCreatives,
+      leads,
       revenue,
-      conversionRate:
-        adLeads.length > 0
-          ? Math.round((adBookings.length / adLeads.length) * 1000) / 10
-          : 0,
-      cpb: adBookings.length > 0 ? Math.round(c.spend / adBookings.length) : 0,
-      roas: c.spend > 0 ? Math.round((revenue / c.spend) * 100) / 100 : 0,
+      dataSource: "live",
+      lastUpdated: new Date().toISOString(),
+      apiStatus: {
+        monday: mondayOk ? "ok" : mondayResult.error ? "error" : "unconfigured",
+        meta:   "unconfigured",
+        google: "unconfigured",
+      },
     };
-  });
 
-  const funnel = mondayOk ? buildFunnel(leads) : getMockDashboardData().funnel;
-  const kpis = buildKPIs(leads, allCreatives);
-  const revenue = buildRevenue(leads);
-
-  const data: DashboardData = {
-    kpis,
-    funnel,
-    creatives: allCreatives,
-    leads,
-    revenue,
-    dataSource: "live",
-    lastUpdated: new Date().toISOString(),
-    apiStatus: {
-      monday: mondayOk ? "ok" : mondayRes.status === "rejected" ? "error" : "unconfigured",
-      meta: metaOk ? "ok" : metaRes.status === "rejected" ? "error" : "unconfigured",
-      google: googleOk ? "ok" : googleRes.status === "rejected" ? "error" : "unconfigured",
-    },
-  };
-
-  return res.json(data);
+    return res.json(data);
+  } catch (err: any) {
+    console.error("Dashboard handler error:", err);
+    return res.status(500).json({ error: err.message });
+  }
 }

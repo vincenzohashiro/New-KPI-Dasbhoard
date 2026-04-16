@@ -142,12 +142,10 @@ query GetBoard($boardId: ID!) {
 }
 `;
 
-// ─── Handler ──────────────────────────────────────────────────────────────────
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+// ─── Core fetch (called directly by dashboard.ts — no HTTP round-trip) ────────
+export async function fetchMondayLeads(): Promise<{ leads: Lead[]; error?: string }> {
   const apiKey = process.env.MONDAY_API_KEY;
-  if (!apiKey) {
-    return res.status(503).json({ error: "MONDAY_API_KEY not set", leads: [] });
-  }
+  if (!apiKey) return { leads: [], error: "MONDAY_API_KEY not set" };
 
   try {
     const boards: Array<{ id: string; name: BoardName }> = [
@@ -166,13 +164,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const item of boardData.items_page.items) {
         const groupId = item.group?.id as string;
         const stage = getStage(groupId, board.name);
-
-        // Skip lost / disqualified leads
         if (stage === null) continue;
 
         const cvs = item.column_values as any[];
-
-        // Per-board column mapping
         let email = "";
         let phone = "";
         let source: AdPlatform = "other";
@@ -227,15 +221,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           enteredAt: createdAt || item.created_at,
         };
 
-        // Match leads across boards by name
         const existing = leadsMap.get(item.name);
-
         if (existing) {
-          // Update with data from the later board
-          existing.currentBoard  = board.name;
-          existing.currentStage  = stage;
-          existing.updatedAt     = item.updated_at;
-          existing.stageHistory  = [...existing.stageHistory, stageEvent];
+          existing.currentBoard = board.name;
+          existing.currentStage = stage;
+          existing.updatedAt    = item.updated_at;
+          existing.stageHistory = [...existing.stageHistory, stageEvent];
           if (bookingDate)  existing.bookingDate  = bookingDate;
           if (surgeryDate)  existing.surgeryDate  = surgeryDate;
           if (surgeryPrice) existing.surgeryPrice = surgeryPrice;
@@ -261,22 +252,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             notes:        notes || undefined,
             grafts:       grafts || undefined,
           };
-
           const daysInStage = Math.round(
             (Date.now() - new Date(createdAt || item.created_at).getTime()) / 86400000
           );
           lead.daysInCurrentStage = daysInStage;
           lead.isStuck = daysInStage > 7;
-
           leadsMap.set(item.name, lead);
         }
       }
     }
 
-    const leads = Array.from(leadsMap.values());
-    return res.json({ leads, total: leads.length });
+    return { leads: Array.from(leadsMap.values()) };
   } catch (err: any) {
-    console.error("Monday API error:", err);
-    return res.status(500).json({ error: err.message, leads: [] });
+    console.error("Monday fetch error:", err);
+    return { leads: [], error: err.message };
   }
+}
+
+// ─── HTTP handler (for direct /api/monday calls) ──────────────────────────────
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const result = await fetchMondayLeads();
+  if (result.error && result.leads.length === 0) {
+    return res.status(result.error === "MONDAY_API_KEY not set" ? 503 : 500)
+      .json(result);
+  }
+  return res.json({ leads: result.leads, total: result.leads.length });
 }
