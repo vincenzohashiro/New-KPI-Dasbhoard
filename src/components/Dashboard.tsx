@@ -24,12 +24,14 @@ import {
   CheckCircle2,
   Settings,
   Database,
+  Zap,
 } from "lucide-react";
 
 // ── Source tabs ──────────────────────────────────────────────────────────────
-type SourceId = "monday" | "meta" | "google" | "demo";
+type SourceId = "live" | "monday" | "meta" | "google" | "demo";
 
 const SOURCES: Array<{ id: SourceId; label: string }> = [
+  { id: "live",   label: "Live" },
   { id: "monday", label: "Monday" },
   { id: "meta",   label: "Meta Ads" },
   { id: "google", label: "Google Ads" },
@@ -88,9 +90,87 @@ function NotConnected({ source, envVars }: { source: string; envVars: string[] }
   );
 }
 
+// ── Live: platform connection status cards ───────────────────────────────────
+type ApiStatus = "ok" | "error" | "unconfigured";
+
+function PlatformCard({
+  name, letter, status, description, envVars,
+}: {
+  name: string;
+  letter: string;
+  status: ApiStatus;
+  description: string;
+  envVars?: string[];
+}) {
+  const isOk = status === "ok";
+  const isErr = status === "error";
+  return (
+    <div className={`rounded-xl border p-5 flex flex-col gap-3 ${
+      isOk  ? "border-success/30 bg-success/5"
+            : isErr ? "border-danger/30 bg-danger/5"
+            : "border-bg-border bg-bg-elevated"
+    }`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm ${
+            isOk ? "bg-success/20 text-success" : isErr ? "bg-danger/20 text-danger" : "bg-bg-border text-text-muted"
+          }`}>
+            {letter}
+          </div>
+          <span className="font-semibold text-sm text-text-primary">{name}</span>
+        </div>
+        {isOk  && <CheckCircle2 size={16} className="text-success" />}
+        {isErr && <AlertCircle  size={16} className="text-danger"  />}
+        {!isOk && !isErr && <Circle size={16} className="text-text-muted" />}
+      </div>
+      <p className="text-xs text-text-muted">{description}</p>
+      {!isOk && envVars && (
+        <div className="pt-1 border-t border-bg-border">
+          <p className="text-xs text-text-muted mb-1.5 font-medium">Required env vars:</p>
+          {envVars.map((v) => (
+            <p key={v} className="text-xs font-mono text-text-secondary leading-relaxed">{v}</p>
+          ))}
+        </div>
+      )}
+      {isOk && (
+        <span className="text-xs text-success font-medium">Connected</span>
+      )}
+    </div>
+  );
+}
+
+function LivePlatformStatus({ apiStatus }: { apiStatus: { monday: ApiStatus; meta: ApiStatus; google: ApiStatus } | undefined }) {
+  const s = apiStatus ?? { monday: "unconfigured", meta: "unconfigured", google: "unconfigured" };
+  return (
+    <div className="rounded-xl border border-bg-border bg-bg-card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Zap size={15} className="text-brand" />
+        <span className="font-semibold text-sm text-text-primary">Data Sources</span>
+        <span className="text-xs text-text-muted ml-1">— connect all three for full live data</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <PlatformCard
+          name="Monday.com" letter="M" status={s.monday}
+          description="Lead pipeline, funnel stages & aftercare tracking"
+        />
+        <PlatformCard
+          name="Meta Ads" letter="f" status={s.meta}
+          description="Facebook & Instagram ad spend, leads, CPL and ROAS"
+          envVars={["VITE_META_ACCESS_TOKEN", "VITE_META_AD_ACCOUNT_ID"]}
+        />
+        <PlatformCard
+          name="Google Ads" letter="G" status={s.google}
+          description="Search & display ad conversions, CPA and keyword performance"
+          envVars={["VITE_GOOGLE_ADS_DEVELOPER_TOKEN", "VITE_GOOGLE_ADS_CLIENT_ID", "VITE_GOOGLE_ADS_REFRESH_TOKEN", "VITE_GOOGLE_ADS_CUSTOMER_ID"]}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export function Dashboard() {
-  const [source, setSource]       = useState<SourceId>("monday");
+  const [source, setSource]       = useState<SourceId>("live");
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [dateRange] = useState({
     since: "2024-01-01",
@@ -111,6 +191,11 @@ export function Dashboard() {
   function sourceStatus(id: SourceId): "ok" | "error" | "unconfigured" | undefined {
     if (id === "demo") return undefined;
     if (!apiStatus) return undefined;
+    if (id === "live") {
+      // green if at least one source is working
+      const any = [apiStatus.monday, apiStatus.meta, apiStatus.google].some(s => s === "ok");
+      return any ? "ok" : "unconfigured";
+    }
     if (id === "monday") return apiStatus.monday;
     if (id === "meta")   return apiStatus.meta;
     if (id === "google") return apiStatus.google;
@@ -181,6 +266,7 @@ export function Dashboard() {
                   }`}
                 >
                   <ApiStatusBadge status={status} active={isActive} />
+                  {s.id === "live" && <Zap size={13} className={isActive ? "text-white" : "text-text-muted"} />}
                   {s.id === "demo" && <Database size={13} className={isActive ? "text-white" : "text-text-muted"} />}
                   {s.label}
                 </button>
@@ -190,8 +276,8 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* ── Content tabs (for monday + demo sources) ── */}
-      {(source === "monday" || source === "demo") && (
+      {/* ── Content tabs (for live + monday + demo sources) ── */}
+      {(source === "live" || source === "monday" || source === "demo") && (
         <nav className="border-b border-bg-border bg-bg-card/60">
           <div className="max-w-screen-2xl mx-auto px-6">
             <div className="flex gap-0 overflow-x-auto">
@@ -243,17 +329,17 @@ export function Dashboard() {
           />
         )}
 
-        {/* Monday loading/error */}
-        {source === "monday" && isLoading && (
+        {/* Loading / error (Monday + Live) */}
+        {(source === "monday" || source === "live") && isLoading && (
           <div className="flex items-center justify-center py-32 text-text-secondary">
             <RefreshCw size={20} className="animate-spin mr-3" />
-            Loading Monday data...
+            Loading data...
           </div>
         )}
         {source === "monday" && isError && (
           <div className="flex items-center justify-center py-32 text-danger">
             <AlertCircle size={20} className="mr-3" />
-            Failed to load data. Check your API configuration.
+            Failed to load Monday data. Check your API configuration.
           </div>
         )}
 
@@ -262,13 +348,52 @@ export function Dashboard() {
           <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-lg bg-warning/10 border border-warning/30 text-warning text-sm">
             <AlertCircle size={16} className="shrink-0" />
             <span>
-              <strong>Example data only</strong> — numbers below are fictional and for layout preview purposes. Switch to the Monday tab to see real data.
+              <strong>Example data only</strong> — numbers below are fictional and for layout preview purposes. Switch to the Live tab to see real data.
             </span>
           </div>
         )}
 
-        {/* Monday + Demo content */}
-        {data && (source === "monday" || source === "demo") && (
+        {/* ── LIVE tab content ── */}
+        {(source === "live") && !isLoading && (
+          <>
+            {activeTab === "overview" && (
+              <div className="space-y-6">
+                <LivePlatformStatus apiStatus={liveData?.apiStatus} />
+                {liveData && (
+                  <>
+                    <KPICards kpis={liveData.kpis} />
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      <FunnelSection funnel={liveData.funnel} compact />
+                      <RevenueSection revenue={liveData.revenue} kpis={liveData.kpis} compact />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {activeTab === "funnel"    && liveData && <FunnelSection funnel={liveData.funnel} />}
+            {activeTab === "pipeline"  && liveData && <SalesPipeline leads={liveData.leads} />}
+            {activeTab === "leads"     && liveData && <LeadSearch leads={liveData.leads} />}
+            {activeTab === "aftercare" && liveData && <AftercareSection leads={liveData.leads} />}
+            {activeTab === "revenue"   && liveData && <RevenueSection revenue={liveData.revenue} kpis={liveData.kpis} />}
+            {activeTab === "creatives" && (
+              <div className="space-y-6">
+                {liveData && liveData.creatives.length > 0
+                  ? <CreativesTable creatives={liveData.creatives} />
+                  : (
+                    <div className="rounded-xl border border-bg-border bg-bg-elevated p-10 text-center">
+                      <Megaphone size={24} className="text-text-muted mx-auto mb-3" />
+                      <p className="text-text-primary font-medium">No ad creatives yet</p>
+                      <p className="text-text-muted text-sm mt-1">Connect Meta Ads or Google Ads to see creative performance here.</p>
+                    </div>
+                  )
+                }
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── MONDAY tab content ── */}
+        {data && source === "monday" && !isError && (
           <>
             {activeTab === "overview" && (
               <div className="space-y-6">
@@ -281,11 +406,34 @@ export function Dashboard() {
                 <CreativesTable creatives={data.creatives} compact />
               </div>
             )}
-            {activeTab === "funnel" && <FunnelSection funnel={data.funnel} />}
-            {activeTab === "pipeline" && <SalesPipeline leads={data.leads} />}
-            {activeTab === "leads" && <LeadSearch leads={data.leads} />}
+            {activeTab === "funnel"    && <FunnelSection funnel={data.funnel} />}
+            {activeTab === "pipeline"  && <SalesPipeline leads={data.leads} />}
+            {activeTab === "leads"     && <LeadSearch leads={data.leads} />}
             {activeTab === "aftercare" && <AftercareSection leads={data.leads} />}
-            {activeTab === "revenue" && <RevenueSection revenue={data.revenue} kpis={data.kpis} />}
+            {activeTab === "revenue"   && <RevenueSection revenue={data.revenue} kpis={data.kpis} />}
+            {activeTab === "creatives" && <CreativesTable creatives={data.creatives} />}
+          </>
+        )}
+
+        {/* ── DEMO tab content ── */}
+        {data && source === "demo" && (
+          <>
+            {activeTab === "overview" && (
+              <div className="space-y-6">
+                <KPICards kpis={data.kpis} />
+                <PlatformStats creatives={data.creatives} />
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <FunnelSection funnel={data.funnel} compact />
+                  <RevenueSection revenue={data.revenue} kpis={data.kpis} compact />
+                </div>
+                <CreativesTable creatives={data.creatives} compact />
+              </div>
+            )}
+            {activeTab === "funnel"    && <FunnelSection funnel={data.funnel} />}
+            {activeTab === "pipeline"  && <SalesPipeline leads={data.leads} />}
+            {activeTab === "leads"     && <LeadSearch leads={data.leads} />}
+            {activeTab === "aftercare" && <AftercareSection leads={data.leads} />}
+            {activeTab === "revenue"   && <RevenueSection revenue={data.revenue} kpis={data.kpis} />}
             {activeTab === "creatives" && <CreativesTable creatives={data.creatives} />}
           </>
         )}
