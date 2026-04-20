@@ -6,6 +6,7 @@ import type {
   Lead, StageEvent, BoardName, AnyStage, AdPlatform,
   FunnelStage, KPIData, RevenueBreakdown, DashboardData,
 } from "./types";
+import { fetchMetaInsights } from "./meta";
 
 const MONDAY_URL = "https://api.monday.com/v2";
 
@@ -204,18 +205,23 @@ function buildFunnel(leads: Lead[]): FunnelStage[] {
   });
 }
 
-function buildKPIs(leads: Lead[]): KPIData {
+function buildKPIs(leads: Lead[], adSpend = 0, adLeads = 0): KPIData {
   const booked  = leads.filter(l => l.currentBoard === "aftercare" || l.stageHistory.some(e => e.board === "aftercare"));
   const onSales = leads.filter(l => ["sales", "aftercare"].includes(l.currentBoard));
   const revenue = booked.reduce((s, l) => s + (l.surgeryPrice || SURGERY_DEFAULT), 0);
   const socoFee = SOCO_BASE + SOCO_RATE * revenue;
+  const leadsForCPL = adLeads || leads.length;
   return {
     totalLeads: leads.length, totalBookings: booked.length,
     overallConversionRate: leads.length ? Math.round((booked.length / leads.length) * 1000) / 10 : 0,
     leadToSalesRate:       leads.length ? Math.round((onSales.length / leads.length) * 1000) / 10 : 0,
     salesToBookingRate:    onSales.length ? Math.round((booked.length / onSales.length) * 1000) / 10 : 0,
-    avgDaysLeadToBooked: 0, totalRevenue: revenue, totalAdSpend: 0,
-    roas: 0, socoFee: Math.round(socoFee), costPerLead: 0, costPerBooking: 0,
+    avgDaysLeadToBooked: 0, totalRevenue: revenue,
+    totalAdSpend: adSpend,
+    roas:         adSpend > 0 ? Math.round((revenue / adSpend) * 100) / 100 : 0,
+    socoFee:      Math.round(socoFee),
+    costPerLead:  adSpend > 0 && leadsForCPL > 0 ? Math.round(adSpend / leadsForCPL) : 0,
+    costPerBooking: adSpend > 0 && booked.length > 0 ? Math.round(adSpend / booked.length) : 0,
     activeLeads: leads.filter(l => l.currentBoard !== "aftercare" || l.currentStage === "Booked").length,
     stuckLeads:  leads.filter(l => l.isStuck).length,
   };
@@ -243,23 +249,27 @@ function buildRevenue(leads: Lead[]): RevenueBreakdown[] {
 export async function fetchMondayDashboard(): Promise<DashboardData> {
   const apiKey = import.meta.env.VITE_MONDAY_API_KEY as string | undefined;
 
-  if (!apiKey) {
-    return {
-      kpis: buildKPIs([]), funnel: buildFunnel([]), creatives: [], leads: [], revenue: [],
-      dataSource: "live", lastUpdated: new Date().toISOString(),
-      apiStatus: { monday: "unconfigured", meta: "unconfigured", google: "unconfigured" },
-    };
-  }
+  const [leadsResult, meta] = await Promise.allSettled([
+    apiKey ? fetchLeads(apiKey) : Promise.resolve([] as Lead[]),
+    fetchMetaInsights(),
+  ]);
 
-  const leads = await fetchLeads(apiKey);
+  const leads      = leadsResult.status === "fulfilled" ? leadsResult.value : [];
+  const mondayOk   = leadsResult.status === "fulfilled";
+  const metaResult = meta.status === "fulfilled" ? meta.value : { totalSpend: 0, totalLeads: 0, creatives: [], status: "error" as const };
+
   return {
-    kpis:     buildKPIs(leads),
-    funnel:   buildFunnel(leads),
-    creatives: [],
+    kpis:      buildKPIs(leads, metaResult.totalSpend, metaResult.totalLeads),
+    funnel:    buildFunnel(leads),
+    creatives: metaResult.creatives,
     leads,
-    revenue:  buildRevenue(leads),
+    revenue:   buildRevenue(leads),
     dataSource: "live",
     lastUpdated: new Date().toISOString(),
-    apiStatus: { monday: "ok", meta: "unconfigured", google: "unconfigured" },
+    apiStatus: {
+      monday: !apiKey ? "unconfigured" : mondayOk ? "ok" : "error",
+      meta:   metaResult.status,
+      google: "unconfigured",
+    },
   };
 }

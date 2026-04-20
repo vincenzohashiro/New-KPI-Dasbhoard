@@ -1,6 +1,7 @@
 
 import type { KPIData } from "@/lib/types";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
+import { AnimatedNumber } from "./AnimatedNumber";
 import {
   Users,
   CalendarCheck,
@@ -14,7 +15,7 @@ import {
 
 interface KPICardProps {
   label: string;
-  value: string;
+  value: React.ReactNode;
   sub?: string;
   delta?: number;
   deltaLabel?: string;
@@ -83,7 +84,7 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
         <KPICard
           label="Total Leads"
-          value={formatNumber(kpis.totalLeads)}
+          value={<AnimatedNumber value={kpis.totalLeads} format={n => formatNumber(Math.round(n))} />}
           sub={`${kpis.activeLeads} active`}
           delta={kpis.deltaLeads}
           icon={<Users size={16} />}
@@ -91,7 +92,7 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
         />
         <KPICard
           label="Total Bookings"
-          value={formatNumber(kpis.totalBookings)}
+          value={<AnimatedNumber value={kpis.totalBookings} format={n => formatNumber(Math.round(n))} />}
           sub={`${formatPercent(kpis.overallConversionRate)} conv.`}
           delta={kpis.deltaBookings}
           icon={<CalendarCheck size={16} />}
@@ -99,35 +100,35 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
         />
         <KPICard
           label="Conversion Rate"
-          value={formatPercent(kpis.overallConversionRate)}
+          value={<AnimatedNumber value={kpis.overallConversionRate} format={n => formatPercent(n)} />}
           sub={`${formatPercent(kpis.salesToBookingRate)} sales→book`}
           icon={<Target size={16} />}
           accent="brand"
         />
         <KPICard
           label="Avg Lead → Booked"
-          value={`${kpis.avgDaysLeadToBooked}d`}
+          value={<AnimatedNumber value={kpis.avgDaysLeadToBooked} format={n => `${Math.round(n)}d`} />}
           sub="days to booking"
           icon={<Clock size={16} />}
           accent="warning"
         />
         <KPICard
           label="Revenue"
-          value={formatCurrency(kpis.totalRevenue, "DKK", true)}
+          value={<AnimatedNumber value={kpis.totalRevenue} format={n => formatCurrency(Math.round(n), "DKK", true)} />}
           sub={`${kpis.totalBookings} surgeries`}
           icon={<BadgeDollarSign size={16} />}
           accent="gold"
         />
         <KPICard
           label="Ad Spend"
-          value={formatCurrency(kpis.totalAdSpend, "DKK", true)}
+          value={<AnimatedNumber value={kpis.totalAdSpend} format={n => formatCurrency(Math.round(n), "DKK", true)} />}
           sub={`CPL ${formatCurrency(kpis.costPerLead, "DKK")}`}
           icon={<Wallet size={16} />}
           accent="brand"
         />
         <KPICard
           label="ROAS"
-          value={`${kpis.roas.toFixed(2)}×`}
+          value={<AnimatedNumber value={kpis.roas} format={n => `${n.toFixed(2)}×`} />}
           sub={`CPB ${formatCurrency(kpis.costPerBooking, "DKK", true)}`}
           delta={kpis.deltaRoas}
           deltaLabel="×"
@@ -136,7 +137,7 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
         />
         <KPICard
           label="Stuck Leads"
-          value={formatNumber(kpis.stuckLeads)}
+          value={<AnimatedNumber value={kpis.stuckLeads} format={n => formatNumber(Math.round(n))} />}
           sub=">7 days no movement"
           icon={<AlertTriangle size={16} />}
           accent={kpis.stuckLeads > 5 ? "danger" : "warning"}
@@ -150,11 +151,11 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
             <div className="text-xs text-text-muted mb-1">Lead → Sales board</div>
             <div className="flex items-center gap-2">
               <div className="text-lg font-bold">
-                {formatPercent(kpis.leadToSalesRate)}
+                <AnimatedNumber value={kpis.leadToSalesRate} format={n => formatPercent(n)} />
               </div>
               <div className="flex-1 bg-bg-elevated rounded-full h-1.5">
                 <div
-                  className="bg-brand h-1.5 rounded-full"
+                  className="bg-brand h-1.5 rounded-full transition-all duration-700"
                   style={{ width: `${kpis.leadToSalesRate}%` }}
                 />
               </div>
@@ -165,11 +166,11 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
             <div className="text-xs text-text-muted mb-1">Sales → Booked</div>
             <div className="flex items-center gap-2">
               <div className="text-lg font-bold">
-                {formatPercent(kpis.salesToBookingRate)}
+                <AnimatedNumber value={kpis.salesToBookingRate} format={n => formatPercent(n)} />
               </div>
               <div className="flex-1 bg-bg-elevated rounded-full h-1.5">
                 <div
-                  className="bg-success h-1.5 rounded-full"
+                  className="bg-success h-1.5 rounded-full transition-all duration-700"
                   style={{ width: `${kpis.salesToBookingRate}%` }}
                 />
               </div>
@@ -181,13 +182,16 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
           <div>
             <div className="text-xs text-text-muted mb-1">Soco Fee (5k + 10%)</div>
             <div className="text-lg font-bold text-gold">
-              {formatCurrency(kpis.socoFee, "DKK", true)}
+              <AnimatedNumber value={kpis.socoFee} format={n => formatCurrency(Math.round(n), "DKK", true)} />
             </div>
           </div>
           <div className="text-right">
             <div className="text-xs text-text-muted mb-1">Net revenue</div>
             <div className="text-lg font-bold text-success">
-              {formatCurrency(kpis.totalRevenue - kpis.socoFee - kpis.totalAdSpend, "DKK", true)}
+              <AnimatedNumber
+                value={kpis.totalRevenue - kpis.socoFee - kpis.totalAdSpend}
+                format={n => formatCurrency(Math.round(n), "DKK", true)}
+              />
             </div>
           </div>
         </div>
@@ -196,13 +200,13 @@ export function KPICards({ kpis }: { kpis: KPIData }) {
           <div>
             <div className="text-xs text-text-muted mb-1">Cost per Lead</div>
             <div className="text-lg font-bold">
-              {formatCurrency(kpis.costPerLead, "DKK")}
+              <AnimatedNumber value={kpis.costPerLead} format={n => formatCurrency(Math.round(n), "DKK")} />
             </div>
           </div>
           <div className="text-right">
             <div className="text-xs text-text-muted mb-1">Cost per Booking</div>
             <div className="text-lg font-bold text-brand">
-              {formatCurrency(kpis.costPerBooking, "DKK")}
+              <AnimatedNumber value={kpis.costPerBooking} format={n => formatCurrency(Math.round(n), "DKK")} />
             </div>
           </div>
         </div>

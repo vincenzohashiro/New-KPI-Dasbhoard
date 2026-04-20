@@ -222,9 +222,15 @@ export function Dashboard() {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              {data && source !== "demo" && (
+              {data && source !== "demo" && !isFetching && (
                 <span className="text-xs text-text-muted hidden md:block">
                   Updated {formatDate(data.lastUpdated, "HH:mm")}
+                </span>
+              )}
+              {isFetching && !isLoading && source !== "demo" && (
+                <span className="flex items-center gap-1.5 text-xs text-brand hidden md:block">
+                  <RefreshCw size={11} className="animate-spin inline-block" />
+                  {" "}Syncing…
                 </span>
               )}
               {source !== "demo" && (
