@@ -12,8 +12,11 @@ async function getAccessToken(): Promise<string> {
       refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN!,
     }),
   });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error_description || json.error);
+  const text = await res.text();
+  let json: any;
+  try { json = JSON.parse(text); } catch { throw new Error(`OAuth non-JSON response (${res.status}): ${text.slice(0, 200)}`); }
+  if (json.error) throw new Error(`OAuth error: ${json.error} — ${json.error_description || ""}`);
+  if (!json.access_token) throw new Error(`No access_token in response: ${text.slice(0, 200)}`);
   return json.access_token;
 }
 
