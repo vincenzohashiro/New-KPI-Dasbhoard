@@ -151,6 +151,16 @@ export interface RevenueBreakdown {
   profit: number;
 }
 
+// ─── Daily ad stats ───────────────────────────────────────────────────────────
+
+export interface MetaDailyPoint {
+  date: string; // YYYY-MM-DD
+  spend: number;
+  leads: number;
+  impressions: number;
+  clicks: number;
+}
+
 // ─── API responses ────────────────────────────────────────────────────────────
 
 export interface DashboardData {
@@ -159,6 +169,7 @@ export interface DashboardData {
   creatives: AdCreative[];
   leads: Lead[];
   revenue: RevenueBreakdown[];
+  metaDaily: MetaDailyPoint[];
   dataSource: "live" | "mock";
   lastUpdated: string;
   apiStatus: {

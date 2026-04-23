@@ -663,6 +663,7 @@ export function getMockDashboardData(): DashboardData {
     creatives: MOCK_CREATIVES,
     leads: MOCK_LEADS,
     revenue: MOCK_REVENUE,
+    metaDaily: [],
     dataSource: "mock",
     lastUpdated: new Date().toISOString(),
     apiStatus: {

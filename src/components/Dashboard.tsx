@@ -9,6 +9,7 @@ import { LeadSearch } from "./LeadSearch";
 import { AftercareSection } from "./AftercareSection";
 import { RevenueSection } from "./RevenueSection";
 import { PlatformStats } from "./PlatformStats";
+import { MetaOverview } from "./MetaOverview";
 import { formatDate } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -445,10 +446,14 @@ export function Dashboard() {
           </>
         )}
 
-        {/* Meta connected content (future) */}
+        {/* Meta connected content */}
         {source === "meta" && apiStatus?.meta === "ok" && data && (
           <div className="space-y-6">
-            <PlatformStats creatives={data.creatives.filter((c) => c.platform === "meta")} />
+            <MetaOverview
+              creatives={data.creatives.filter((c) => c.platform === "meta")}
+              daily={data.metaDaily}
+              leads={data.leads}
+            />
             <CreativesTable creatives={data.creatives.filter((c) => c.platform === "meta")} />
           </div>
         )}

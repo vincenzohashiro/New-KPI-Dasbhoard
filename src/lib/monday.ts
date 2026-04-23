@@ -264,6 +264,7 @@ export async function fetchMondayDashboard(): Promise<DashboardData> {
     creatives: metaResult.creatives,
     leads,
     revenue:   buildRevenue(leads),
+    metaDaily: metaResult.daily,
     dataSource: "live",
     lastUpdated: new Date().toISOString(),
     apiStatus: {
