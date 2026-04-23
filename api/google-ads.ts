@@ -25,13 +25,17 @@ async function gaql(accessToken: string, query: string): Promise<any[]> {
   const devToken   = process.env.GOOGLE_ADS_DEVELOPER_TOKEN!;
   const url        = `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:search`;
 
+  const managerCustomerId = process.env.GOOGLE_ADS_MANAGER_CUSTOMER_ID;
+  const headers: Record<string, string> = {
+    "Content-Type":    "application/json",
+    "Authorization":   `Bearer ${accessToken}`,
+    "developer-token": devToken,
+  };
+  if (managerCustomerId) headers["login-customer-id"] = managerCustomerId;
+
   const res  = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type":    "application/json",
-      "Authorization":   `Bearer ${accessToken}`,
-      "developer-token": devToken,
-    },
+    headers,
     body: JSON.stringify({ query }),
   });
 
