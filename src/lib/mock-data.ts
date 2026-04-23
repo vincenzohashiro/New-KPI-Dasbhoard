@@ -664,6 +664,7 @@ export function getMockDashboardData(): DashboardData {
     leads: MOCK_LEADS,
     revenue: MOCK_REVENUE,
     metaDaily: [],
+    googleDaily: [],
     dataSource: "mock",
     lastUpdated: new Date().toISOString(),
     apiStatus: {

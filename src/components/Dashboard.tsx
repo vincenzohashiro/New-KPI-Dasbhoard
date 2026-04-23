@@ -10,6 +10,7 @@ import { AftercareSection } from "./AftercareSection";
 import { RevenueSection } from "./RevenueSection";
 import { PlatformStats } from "./PlatformStats";
 import { MetaOverview } from "./MetaOverview";
+import { GoogleOverview } from "./GoogleOverview";
 import { formatDate } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -458,10 +459,14 @@ export function Dashboard() {
           </div>
         )}
 
-        {/* Google connected content (future) */}
+        {/* Google connected content */}
         {source === "google" && apiStatus?.google === "ok" && data && (
           <div className="space-y-6">
-            <PlatformStats creatives={data.creatives.filter((c) => c.platform === "google")} />
+            <GoogleOverview
+              creatives={data.creatives.filter((c) => c.platform === "google")}
+              daily={data.googleDaily}
+              leads={data.leads}
+            />
             <CreativesTable creatives={data.creatives.filter((c) => c.platform === "google")} />
           </div>
         )}

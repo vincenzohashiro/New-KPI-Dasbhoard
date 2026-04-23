@@ -7,6 +7,7 @@ import type {
   FunnelStage, KPIData, RevenueBreakdown, DashboardData,
 } from "./types";
 import { fetchMetaInsights } from "./meta";
+import { fetchGoogleInsights } from "./google";
 
 const MONDAY_URL = "https://api.monday.com/v2";
 
@@ -249,28 +250,34 @@ function buildRevenue(leads: Lead[]): RevenueBreakdown[] {
 export async function fetchMondayDashboard(): Promise<DashboardData> {
   const apiKey = import.meta.env.VITE_MONDAY_API_KEY as string | undefined;
 
-  const [leadsResult, meta] = await Promise.allSettled([
+  const [leadsResult, metaResult, googleResult] = await Promise.allSettled([
     apiKey ? fetchLeads(apiKey) : Promise.resolve([] as Lead[]),
     fetchMetaInsights(),
+    fetchGoogleInsights(),
   ]);
 
-  const leads      = leadsResult.status === "fulfilled" ? leadsResult.value : [];
-  const mondayOk   = leadsResult.status === "fulfilled";
-  const metaResult = meta.status === "fulfilled" ? meta.value : { totalSpend: 0, totalLeads: 0, creatives: [], status: "error" as const };
+  const leads  = leadsResult.status === "fulfilled" ? leadsResult.value : [];
+  const mondayOk = leadsResult.status === "fulfilled";
+  const meta   = metaResult.status   === "fulfilled" ? metaResult.value   : { totalSpend: 0, totalLeads: 0, creatives: [], daily: [], status: "error" as const };
+  const google = googleResult.status === "fulfilled" ? googleResult.value : { totalSpend: 0, totalLeads: 0, creatives: [], daily: [], status: "error" as const };
+
+  const totalAdSpend = meta.totalSpend + google.totalSpend;
+  const totalAdLeads = meta.totalLeads + google.totalLeads;
 
   return {
-    kpis:      buildKPIs(leads, metaResult.totalSpend, metaResult.totalLeads),
-    funnel:    buildFunnel(leads),
-    creatives: metaResult.creatives,
+    kpis:        buildKPIs(leads, totalAdSpend, totalAdLeads),
+    funnel:      buildFunnel(leads),
+    creatives:   [...meta.creatives, ...google.creatives],
     leads,
-    revenue:   buildRevenue(leads),
-    metaDaily: metaResult.daily,
-    dataSource: "live",
+    revenue:     buildRevenue(leads),
+    metaDaily:   meta.daily,
+    googleDaily: google.daily,
+    dataSource:  "live",
     lastUpdated: new Date().toISOString(),
     apiStatus: {
       monday: !apiKey ? "unconfigured" : mondayOk ? "ok" : "error",
-      meta:   metaResult.status,
-      google: "unconfigured",
+      meta:   meta.status,
+      google: google.status,
     },
   };
 }

@@ -170,6 +170,7 @@ export interface DashboardData {
   leads: Lead[];
   revenue: RevenueBreakdown[];
   metaDaily: MetaDailyPoint[];
+  googleDaily: MetaDailyPoint[];
   dataSource: "live" | "mock";
   lastUpdated: string;
   apiStatus: {
