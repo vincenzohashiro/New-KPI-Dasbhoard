@@ -23,7 +23,7 @@ async function getAccessToken(): Promise<string> {
 async function gaql(accessToken: string, query: string): Promise<any[]> {
   const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID!;
   const devToken   = process.env.GOOGLE_ADS_DEVELOPER_TOKEN!;
-  const url        = `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`;
+  const url        = `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:search`;
 
   const res  = await fetch(url, {
     method: "POST",
