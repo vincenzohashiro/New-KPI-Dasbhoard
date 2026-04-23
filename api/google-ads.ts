@@ -21,22 +21,24 @@ async function getAccessToken(): Promise<string> {
 }
 
 async function gaql(accessToken: string, query: string): Promise<any[]> {
-  const customerId  = process.env.GOOGLE_ADS_CUSTOMER_ID!;
-  const devToken    = process.env.GOOGLE_ADS_DEVELOPER_TOKEN!;
-  const url         = `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`;
+  const customerId = process.env.GOOGLE_ADS_CUSTOMER_ID!;
+  const devToken   = process.env.GOOGLE_ADS_DEVELOPER_TOKEN!;
+  const url        = `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`;
 
-  const res = await fetch(url, {
+  const res  = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type":   "application/json",
-      "Authorization":  `Bearer ${accessToken}`,
+      "Content-Type":    "application/json",
+      "Authorization":   `Bearer ${accessToken}`,
       "developer-token": devToken,
     },
     body: JSON.stringify({ query }),
   });
 
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message || `Google Ads error ${res.status}`);
+  const text = await res.text();
+  let json: any;
+  try { json = JSON.parse(text); } catch { throw new Error(`Google Ads API non-JSON (${res.status}): ${text.slice(0, 300)}`); }
+  if (json.error) throw new Error(`Google Ads API error: ${JSON.stringify(json.error).slice(0, 300)}`);
   return json.results ?? [];
 }
 
