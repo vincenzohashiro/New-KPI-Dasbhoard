@@ -55,6 +55,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const accessToken = await getAccessToken();
 
+    // Diagnostic: list all accessible customer IDs
+    const listRes  = await fetch("https://googleads.googleapis.com/v19/customers:listAccessibleCustomers", {
+      headers: {
+        "Authorization":   `Bearer ${accessToken}`,
+        "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+      },
+    });
+    const listText = await listRes.text();
+    console.log("Accessible customers:", listText.slice(0, 500));
+    if (!listRes.ok) return res.json({ status: "error", error: `listAccessibleCustomers failed (${listRes.status}): ${listText.slice(0, 300)}`, creatives: [], daily: [] });
+
     const since = (req.query.since as string) || "2024-01-01";
     const until = (req.query.until as string) || new Date().toISOString().slice(0, 10);
 
