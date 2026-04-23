@@ -317,7 +317,7 @@ export function Dashboard() {
         {source === "meta" && apiStatus?.meta !== "ok" && (
           <NotConnected
             source="Meta Ads"
-            envVars={["META_ACCESS_TOKEN", "META_AD_ACCOUNT_ID"]}
+            envVars={["VITE_META_ACCESS_TOKEN", "VITE_META_AD_ACCOUNT_ID"]}
           />
         )}
 
