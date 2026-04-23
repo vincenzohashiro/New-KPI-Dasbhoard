@@ -161,7 +161,7 @@ function LivePlatformStatus({ apiStatus }: { apiStatus: { monday: ApiStatus; met
         <PlatformCard
           name="Google Ads" letter="G" status={s.google}
           description="Search & display ad conversions, CPA and keyword performance"
-          envVars={["VITE_GOOGLE_ADS_DEVELOPER_TOKEN", "VITE_GOOGLE_ADS_CLIENT_ID", "VITE_GOOGLE_ADS_REFRESH_TOKEN", "VITE_GOOGLE_ADS_CUSTOMER_ID"]}
+          envVars={["GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_CLIENT_ID", "GOOGLE_ADS_CLIENT_SECRET", "GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_CUSTOMER_ID"]}
         />
       </div>
     </div>
@@ -332,6 +332,7 @@ export function Dashboard() {
               "GOOGLE_ADS_REFRESH_TOKEN",
               "GOOGLE_ADS_CUSTOMER_ID",
             ]}
+
           />
         )}
 
